@@ -32,7 +32,7 @@ function mentionedLocations(question, locations) {
 function detectIntent(question) {
   const q = normalize(question);
 
-  if (/\b(e bike|ebike|ebikes|electric|electric bike|electric bikes)\b/.test(q)) {
+  if (/\b(e bikes?|ebikes?|electric(?: bikes?)?)\b/.test(q)) {
     return "ebikes";
   }
   if (/\b(park|parking|dock|docks|docking|return|returning|drop off|full|space|spaces|spot|spots)\b/.test(q)) {
