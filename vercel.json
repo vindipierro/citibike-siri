@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/ask",
+      "destination": "/api/ask"
+    },
+    {
       "source": "/:location",
       "destination": "/api/location?location=:location"
     }
