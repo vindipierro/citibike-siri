@@ -3,70 +3,474 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Citi Bike Siri</title>
+    <meta name="theme-color" content="#0b0f14" />
+    <title>Citi Bike Ask</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+        background: #0b0f14;
+        color: #f7f9fb;
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #101214;
-        color: #f7f7f7;
+        background:
+          radial-gradient(circle at top left, rgba(0, 114, 206, 0.2), transparent 38rem),
+          #0b0f14;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
       }
 
       main {
-        width: min(620px, calc(100% - 40px));
+        width: min(760px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: max(64px, 10vh) 0 56px;
       }
 
       .eyebrow {
-        color: #a8adb3;
-        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #94a0ad;
+        font-size: 13px;
+        font-weight: 650;
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
 
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #0072ce;
+        box-shadow: 0 0 20px rgba(0, 114, 206, 0.8);
+      }
+
       h1 {
-        font-size: clamp(38px, 9vw, 64px);
-        line-height: 0.95;
-        margin: 12px 0 24px;
+        max-width: 680px;
+        margin: 16px 0 14px;
+        font-size: clamp(46px, 10vw, 78px);
+        line-height: 0.96;
+        letter-spacing: -0.055em;
       }
 
-      p {
-        color: #a8adb3;
-        line-height: 1.55;
+      .intro {
+        max-width: 590px;
+        margin: 0;
+        color: #9ba6b2;
+        font-size: clamp(17px, 3vw, 20px);
+        line-height: 1.5;
       }
 
-      .card {
-        border: 1px solid #30343a;
+      .ask-card {
+        margin-top: 38px;
+        padding: 10px;
+        border: 1px solid #27303a;
         border-radius: 24px;
-        padding: 24px;
-        background: #181b1f;
-        margin-top: 28px;
+        background: rgba(20, 26, 33, 0.92);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
       }
 
-      code {
-        color: #f7f7f7;
+      form {
+        display: flex;
+        gap: 10px;
+      }
+
+      input {
+        min-width: 0;
+        flex: 1;
+        border: 0;
+        border-radius: 16px;
+        outline: 0;
+        padding: 16px 17px;
+        background: transparent;
+        color: #f7f9fb;
+        font-size: 17px;
+      }
+
+      input::placeholder {
+        color: #697581;
+      }
+
+      input:focus-visible {
+        box-shadow: inset 0 0 0 2px #0072ce;
+      }
+
+      .ask-button {
+        flex: 0 0 auto;
+        border: 0;
+        border-radius: 16px;
+        padding: 0 20px;
+        background: #0072ce;
+        color: white;
+        font-weight: 720;
+        cursor: pointer;
+        transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+      }
+
+      .ask-button:hover {
+        background: #1283db;
+      }
+
+      .ask-button:active {
+        transform: scale(0.98);
+      }
+
+      .ask-button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      .location-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 8px 2px;
+        color: #74808c;
+        font-size: 13px;
+      }
+
+      .location-status {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: #59636e;
+      }
+
+      .location-status.ready {
+        background: #47c46b;
+      }
+
+      .location-status.unavailable {
+        background: #eaa23e;
+      }
+
+      .examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 16px;
+      }
+
+      .chip {
+        border: 1px solid #28323c;
+        border-radius: 999px;
+        padding: 9px 12px;
+        background: #11171d;
+        color: #aab4bf;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 120ms ease, color 120ms ease, transform 120ms ease;
+      }
+
+      .chip:hover {
+        border-color: #3f4d5a;
+        color: #eef3f7;
+      }
+
+      .chip:active {
+        transform: scale(0.98);
+      }
+
+      .answer {
+        display: none;
+        margin-top: 18px;
+        border: 1px solid #27303a;
+        border-radius: 22px;
+        padding: 22px;
+        background: rgba(17, 23, 29, 0.92);
+      }
+
+      .answer.visible {
+        display: block;
+      }
+
+      .answer-label,
+      .history-title {
+        margin: 0 0 9px;
+        color: #6f7c88;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .answer-text {
+        margin: 0;
+        font-size: clamp(20px, 4vw, 25px);
+        line-height: 1.38;
+        letter-spacing: -0.018em;
+      }
+
+      .history {
+        display: none;
+        margin-top: 30px;
+      }
+
+      .history.visible {
+        display: block;
+      }
+
+      .history-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .history-item {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .history-item:hover {
+        background: #11171d;
+      }
+
+      .history-question {
+        display: block;
+        color: #dbe2e8;
+        font-size: 14px;
+      }
+
+      .history-answer {
+        display: block;
+        margin-top: 4px;
+        overflow: hidden;
+        color: #6f7c88;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .footer {
+        margin-top: 42px;
+        color: #53606d;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 560px) {
+        main {
+          width: min(100% - 22px, 760px);
+          padding-top: 54px;
+        }
+
+        .ask-card {
+          border-radius: 21px;
+        }
+
+        form {
+          gap: 7px;
+        }
+
+        input {
+          padding: 15px 13px;
+          font-size: 16px;
+        }
+
+        .ask-button {
+          padding: 0 16px;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <div class="eyebrow">Citi Bike Siri</div>
-      <h1>Live Citi Bike availability, named your way.</h1>
-      <p>
-        Configure private nicknames for the stations you use, then ask Siri to check them without exposing those locations in the public codebase.
-      </p>
+      <div class="eyebrow"><span class="dot"></span>Citi Bike Siri</div>
+      <h1>Ask Citi Bike.</h1>
+      <p class="intro">Live bikes, e-bikes, open docks, saved places, and nearby alternatives from the same assistant that powers the Siri Shortcut.</p>
 
-      <section class="card">
-        <p><code>/home</code> → your configured station</p>
-        <p><code>/work</code> → another configured station</p>
-        <p><code>?format=json</code> → structured availability data</p>
+      <section class="ask-card">
+        <form id="ask-form">
+          <input id="question" name="question" type="text" autocomplete="off" autocapitalize="sentences" placeholder="Where can I park near me?" aria-label="Ask a Citi Bike question" required />
+          <button class="ask-button" id="ask-button" type="submit">Ask</button>
+        </form>
+        <div class="location-row">
+          <span class="location-status" id="location-status"></span>
+          <span id="location-text">Location will be requested for nearby questions.</span>
+        </div>
       </section>
+
+      <div class="examples" aria-label="Example questions">
+        <button class="chip" type="button" data-question="Where can I park near me?">Park near me</button>
+        <button class="chip" type="button" data-question="Where is the closest e-bike?">Closest e-bike</button>
+        <button class="chip" type="button" data-question="How's Citi Bike around me?">Area summary</button>
+        <button class="chip" type="button" data-question="How many e-bikes are near me?">Nearby e-bikes</button>
+      </div>
+
+      <section class="answer" id="answer" aria-live="polite">
+        <p class="answer-label">Answer</p>
+        <p class="answer-text" id="answer-text"></p>
+      </section>
+
+      <section class="history" id="history">
+        <p class="history-title">Recent</p>
+        <div class="history-list" id="history-list"></div>
+      </section>
+
+      <p class="footer">Your browser location is sent only with the question so nearby Citi Bike stations can be found. Recent questions are stored only in this browser.</p>
     </main>
+
+    <script>
+      const form = document.getElementById("ask-form");
+      const questionInput = document.getElementById("question");
+      const askButton = document.getElementById("ask-button");
+      const answer = document.getElementById("answer");
+      const answerText = document.getElementById("answer-text");
+      const locationStatus = document.getElementById("location-status");
+      const locationText = document.getElementById("location-text");
+      const historySection = document.getElementById("history");
+      const historyList = document.getElementById("history-list");
+      const historyKey = "citibike-ask-history";
+      let cachedPosition = null;
+
+      function readHistory() {
+        try {
+          const value = JSON.parse(localStorage.getItem(historyKey) || "[]");
+          return Array.isArray(value) ? value.slice(0, 5) : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function renderHistory() {
+        const items = readHistory();
+        historyList.replaceChildren();
+        historySection.classList.toggle("visible", items.length > 0);
+
+        for (const item of items) {
+          const button = document.createElement("button");
+          const q = document.createElement("span");
+          const a = document.createElement("span");
+          button.type = "button";
+          button.className = "history-item";
+          q.className = "history-question";
+          a.className = "history-answer";
+          q.textContent = item.question;
+          a.textContent = item.answer;
+          button.append(q, a);
+          button.addEventListener("click", () => {
+            questionInput.value = item.question;
+            questionInput.focus();
+          });
+          historyList.append(button);
+        }
+      }
+
+      function saveHistory(question, response) {
+        const items = readHistory().filter((item) => item.question !== question);
+        items.unshift({ question, answer: response });
+        try {
+          localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 5)));
+        } catch {}
+        renderHistory();
+      }
+
+      function setLocationState(state, text) {
+        locationStatus.className = `location-status ${state || ""}`.trim();
+        locationText.textContent = text;
+      }
+
+      function getPosition() {
+        if (cachedPosition) return Promise.resolve(cachedPosition);
+        if (!("geolocation" in navigator)) {
+          setLocationState("unavailable", "Location is unavailable in this browser. Saved places still work.");
+          return Promise.resolve(null);
+        }
+
+        setLocationState("", "Getting your location...");
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              cachedPosition = {
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+              };
+              setLocationState("ready", "Location ready for nearby questions.");
+              resolve(cachedPosition);
+            },
+            () => {
+              setLocationState("unavailable", "Location was not shared. Saved places still work.");
+              resolve(null);
+            },
+            { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+          );
+        });
+      }
+
+      async function ask(question) {
+        const trimmed = question.trim();
+        if (!trimmed) return;
+
+        askButton.disabled = true;
+        askButton.textContent = "Asking...";
+        answer.classList.add("visible");
+        answerText.textContent = "Checking live Citi Bike availability...";
+
+        try {
+          const position = await getPosition();
+          const payload = { q: trimmed, format: "json" };
+          if (position) {
+            payload.lat = position.lat;
+            payload.lon = position.lon;
+          }
+
+          const response = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const raw = await response.text();
+          if (!response.ok) throw new Error(raw || "Citi Bike request failed.");
+
+          let text = raw;
+          try {
+            const data = JSON.parse(raw);
+            text = data.response || raw;
+          } catch {}
+
+          answerText.textContent = text;
+          saveHistory(trimmed, text);
+        } catch (error) {
+          answerText.textContent = error.message || "I couldn't check Citi Bike right now.";
+        } finally {
+          askButton.disabled = false;
+          askButton.textContent = "Ask";
+        }
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        ask(questionInput.value);
+      });
+
+      for (const chip of document.querySelectorAll("[data-question]")) {
+        chip.addEventListener("click", () => {
+          questionInput.value = chip.dataset.question;
+          ask(chip.dataset.question);
+        });
+      }
+
+      renderHistory();
+    </script>
   </body>
 </html>
