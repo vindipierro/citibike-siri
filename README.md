@@ -1,6 +1,6 @@
 # Citi Bike Siri
 
-A Siri-friendly API for live Citi Bike availability. Save nicknames for stations, ask natural-language questions, and let one Shortcut handle all of them.
+A Siri-friendly API and lightweight web assistant for live Citi Bike availability. Save nicknames for stations, ask natural-language questions, and let one Shortcut or the deployment landing page handle all of them.
 
 ## Configuration
 
@@ -13,6 +13,20 @@ CITIBIKE_LOCATIONS={"home":"Example Station Name","work":"Another Station Name"}
 This can be a normal plain environment variable on Vercel. The public repository simply does not need to contain your actual mappings.
 
 For local development, put the value in `.env.local`. Environment files are ignored by Git. `locations.example.json` shows the expected shape.
+
+## Web assistant
+
+The deployment root includes an interactive Ask page backed by the same `/ask` endpoint used by Siri.
+
+It includes:
+
+- A mobile-friendly natural-language input
+- Browser geolocation for nearby station questions
+- Example prompts for common questions
+- A live response area
+- Recent question history stored only in the browser
+
+The page sends a JSON `POST` request to `/ask`, so web and Siri requests use the same parsing and Citi Bike data logic.
 
 ## Smart questions
 
@@ -30,8 +44,12 @@ It understands the saved nickname anywhere in the question and currently support
 - Status: `What's home looking like?`, `Home status`
 - Comparisons: `Which has more docks, home or work?`
 - Location-aware searches when `lat` and `lon` are included: `Where can I park near me?`, `Where is the closest e-bike?`
+- Nearby totals within a quarter mile: `How many e-bikes are near me?`, `How many docks are around me?`
+- Area summaries: `How's Citi Bike around me?`
 
 When a saved destination is full or nearly full, the response automatically suggests the nearest station with a healthier number of open docks. Bike and e-bike questions also offer a nearby alternative when availability is empty or very low.
+
+Area summaries report the total bikes, e-bikes, and open docks within a quarter mile, plus the strongest nearby bike and parking options.
 
 ### Location-aware example
 
@@ -103,5 +121,7 @@ Add another nickname/station pair to `CITIBIKE_LOCATIONS` and redeploy or restar
 - Saved-location aliases
 - Parking, bike, e-bike, status, and comparison questions
 - Nearby fallback when a destination is full or low
-- `near me` searches using Shortcut-provided coordinates
+- `near me` searches using Shortcut- or browser-provided coordinates
+- Nearby totals and quarter-mile area summaries
+- Interactive web Ask interface
 - Plain-text responses optimized for Siri, plus JSON debugging
