@@ -12,6 +12,7 @@ import {
 const LOW_DOCKS = 2;
 const LOW_BIKES = 1;
 const RECOMMENDED_DOCKS = 3;
+const NEARBY_RADIUS_MILES = 0.25;
 
 function normalize(text) {
   return text
@@ -42,6 +43,25 @@ function detectIntent(question) {
     return "bikes";
   }
   return "status";
+}
+
+function detectMode(question) {
+  const q = normalize(question);
+  const isNearby = /\b(near me|around me|nearby|close by)\b/.test(q);
+
+  if (isNearby && /\b(how many|total|number of)\b/.test(q)) {
+    return "nearby-count";
+  }
+
+  if (
+    isNearby &&
+    (/\b(how is|how are|hows|status|overview|summary|looking)\b/.test(q) ||
+      /\bwhat(?: is|s)? around me\b/.test(q))
+  ) {
+    return "area-summary";
+  }
+
+  return "standard";
 }
 
 function parseCoordinate(value, min, max) {
@@ -83,6 +103,21 @@ function nearestForIntent(snapshot, lat, lon, intent, excludeStationId = null) {
   }
 
   return ranked[0] ?? null;
+}
+
+function nearbyStates(snapshot, lat, lon) {
+  return rankedStations(
+    snapshot,
+    lat,
+    lon,
+    (state) => state.isInstalled
+  ).filter((state) => state.distanceMiles <= NEARBY_RADIUS_MILES);
+}
+
+function bestNearby(states, metric, eligibility) {
+  return states
+    .filter((state) => eligibility(state) && state[metric] > 0)
+    .sort((a, b) => b[metric] - a[metric] || a.distanceMiles - b.distanceMiles)[0] ?? null;
 }
 
 function alternativeFromStation(snapshot, state, intent) {
@@ -182,6 +217,64 @@ function answerNearMe(intent, snapshot, locations, lat, lon) {
   return `${label} is ${distance}. It has ${nearest.docksAvailable} open docks and ${nearest.bikesAvailable} bikes.`;
 }
 
+function answerNearbyCount(intent, snapshot, lat, lon) {
+  const states = nearbyStates(snapshot, lat, lon);
+  if (states.length === 0) {
+    return "I couldn't find a Citi Bike station within a quarter mile.";
+  }
+
+  if (intent === "status") {
+    return `There are ${states.length} Citi Bike stations within a quarter mile.`;
+  }
+
+  const config = {
+    docks: {
+      metric: "docksAvailable",
+      noun: "open docks",
+      eligible: (state) => state.isReturning
+    },
+    bikes: {
+      metric: "bikesAvailable",
+      noun: "bikes",
+      eligible: (state) => state.isRenting
+    },
+    ebikes: {
+      metric: "ebikesAvailable",
+      noun: "e-bikes",
+      eligible: (state) => state.isRenting
+    }
+  }[intent];
+
+  const eligible = states.filter(config.eligible);
+  const count = eligible.reduce((total, state) => total + state[config.metric], 0);
+  return `Within a quarter mile, there are ${count} ${config.noun} across ${eligible.length} active stations.`;
+}
+
+function answerAreaSummary(snapshot, locations, lat, lon) {
+  const states = nearbyStates(snapshot, lat, lon);
+  if (states.length === 0) {
+    return "I couldn't find a Citi Bike station within a quarter mile.";
+  }
+
+  const renting = states.filter((state) => state.isRenting);
+  const returning = states.filter((state) => state.isReturning);
+  const totalBikes = renting.reduce((total, state) => total + state.bikesAvailable, 0);
+  const totalEbikes = renting.reduce((total, state) => total + state.ebikesAvailable, 0);
+  const totalDocks = returning.reduce((total, state) => total + state.docksAvailable, 0);
+  const bestBike = bestNearby(states, "bikesAvailable", (state) => state.isRenting);
+  const bestDock = bestNearby(states, "docksAvailable", (state) => state.isReturning);
+  let text = `Within a quarter mile, ${states.length} stations have ${totalBikes} bikes, including ${totalEbikes} e-bikes, and ${totalDocks} open docks.`;
+
+  if (bestBike) {
+    text += ` Best for a bike is ${stationLabel(bestBike.station, locations)} with ${bestBike.bikesAvailable}.`;
+  }
+  if (bestDock) {
+    text += ` Best for parking is ${stationLabel(bestDock.station, locations)} with ${bestDock.docksAvailable} open docks.`;
+  }
+
+  return text;
+}
+
 function answerComparison(nicknames, intent, locations, snapshot) {
   const states = nicknames.slice(0, 2).map((nickname) => ({
     nickname,
@@ -245,6 +338,7 @@ export default async function handler(request, response) {
     const locations = getLocations();
     const snapshot = await getSnapshot();
     const intent = detectIntent(input.question);
+    const mode = detectMode(input.question);
     const nicknames = mentionedLocations(input.question, locations);
     const lat = parseCoordinate(input.lat, -90, 90);
     const lon = parseCoordinate(input.lon, -180, 180);
@@ -262,6 +356,10 @@ export default async function handler(request, response) {
           : intent === "ebikes"
             ? answerBikes(nickname, state, snapshot, locations, true)
             : answerStatus(nickname, state);
+    } else if (lat !== null && lon !== null && mode === "nearby-count") {
+      text = answerNearbyCount(intent, snapshot, lat, lon);
+    } else if (lat !== null && lon !== null && mode === "area-summary") {
+      text = answerAreaSummary(snapshot, locations, lat, lon);
     } else if (lat !== null && lon !== null) {
       text = answerNearMe(intent, snapshot, locations, lat, lon);
     } else {
@@ -272,6 +370,7 @@ export default async function handler(request, response) {
       return response.status(200).json({
         question: input.question,
         intent,
+        mode,
         locations: nicknames,
         response: text
       });
