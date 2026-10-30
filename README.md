@@ -40,16 +40,17 @@ It understands the saved nickname anywhere in the question and currently support
 
 - Parking and open docks: `Can I park at home?`, `Is work full?`, `How many docks at home?`
 - Bikes: `Can I get a bike at work?`, `How many bikes at home?`
+- Classic bikes: `Are there classic bikes at work?`, `Where is the closest classic bike?`, `How many regular bikes are near me?`
 - E-bikes: `Are there e-bikes at work?`
 - Status: `What's home looking like?`, `Home status`
-- Comparisons: `Which has more docks, home or work?`
-- Location-aware searches when `lat` and `lon` are included: `Where can I park near me?`, `Where is the closest e-bike?`
-- Nearby totals within a quarter mile: `How many e-bikes are near me?`, `How many docks are around me?`
+- Comparisons: `Which has more docks, home or work?`, `Which has more classic bikes, home or work?`
+- Location-aware searches when `lat` and `lon` are included: `Where can I park near me?`, `Where is the closest e-bike?`, `Find me a classic bike nearby`
+- Nearby totals within a quarter mile: `How many e-bikes are near me?`, `How many classic bikes are near me?`, `How many docks are around me?`
 - Area summaries: `How's Citi Bike around me?`
 
-When a saved destination is full or nearly full, the response automatically suggests the nearest station with a healthier number of open docks. Bike and e-bike questions also offer a nearby alternative when availability is empty or very low.
+When a saved destination is full or nearly full, the response automatically suggests the nearest station with a healthier number of open docks. Bike, classic-bike, and e-bike questions also offer a nearby alternative when availability is empty or very low.
 
-Area summaries report the total bikes, e-bikes, and open docks within a quarter mile, plus the strongest nearby bike and parking options.
+Area summaries report the total bikes, classic bikes, e-bikes, and open docks within a quarter mile, plus the strongest nearby bike and parking options.
 
 ### Location-aware example
 
@@ -119,7 +120,7 @@ Add another nickname/station pair to `CITIBIKE_LOCATIONS` and redeploy or restar
 
 - Natural-language intent parsing without an LLM
 - Saved-location aliases
-- Parking, bike, e-bike, status, and comparison questions
+- Parking, bike, classic-bike, e-bike, status, and comparison questions
 - Nearby fallback when a destination is full or low
 - `near me` searches using Shortcut- or browser-provided coordinates
 - Nearby totals and quarter-mile area summaries
