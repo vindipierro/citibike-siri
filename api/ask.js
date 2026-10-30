@@ -33,6 +33,9 @@ function mentionedLocations(question, locations) {
 function detectIntent(question) {
   const q = normalize(question);
 
+  if (/\b(classic(?: bikes?)?|regular bikes?|pedal bikes?)\b/.test(q)) {
+    return "classic";
+  }
   if (/\b(e bikes?|ebikes?|electric(?: bikes?)?)\b/.test(q)) {
     return "ebikes";
   }
@@ -87,6 +90,7 @@ function nearestForIntent(snapshot, lat, lon, intent, excludeStationId = null) {
   const predicates = {
     docks: (state) => state.isInstalled && state.isReturning && state.docksAvailable >= RECOMMENDED_DOCKS,
     bikes: (state) => state.isInstalled && state.isRenting && state.bikesAvailable > 0,
+    classic: (state) => state.isInstalled && state.isRenting && state.classicBikesAvailable > 0,
     ebikes: (state) => state.isInstalled && state.isRenting && state.ebikesAvailable > 0,
     status: (state) => state.isInstalled
   };
@@ -133,8 +137,20 @@ function alternativeFromStation(snapshot, state, intent) {
 function alternativeText(alternative, locations, metric) {
   if (!alternative) return "";
   const label = stationLabel(alternative.station, locations);
-  const count = metric === "docks" ? alternative.docksAvailable : metric === "ebikes" ? alternative.ebikesAvailable : alternative.bikesAvailable;
-  const noun = metric === "docks" ? (count === 1 ? "dock" : "docks") : metric === "ebikes" ? (count === 1 ? "e-bike" : "e-bikes") : (count === 1 ? "bike" : "bikes");
+  const count = metric === "docks"
+    ? alternative.docksAvailable
+    : metric === "ebikes"
+      ? alternative.ebikesAvailable
+      : metric === "classic"
+        ? alternative.classicBikesAvailable
+        : alternative.bikesAvailable;
+  const noun = metric === "docks"
+    ? (count === 1 ? "dock" : "docks")
+    : metric === "ebikes"
+      ? (count === 1 ? "e-bike" : "e-bikes")
+      : metric === "classic"
+        ? (count === 1 ? "classic bike" : "classic bikes")
+        : (count === 1 ? "bike" : "bikes");
   return `${label} is ${formatDistance(alternative.distanceMiles)} with ${count} ${noun}.`;
 }
 
@@ -164,25 +180,41 @@ function answerDocks(nickname, state, snapshot, locations) {
   return `Yes. ${name} has ${state.docksAvailable} open docks.`;
 }
 
-function answerBikes(nickname, state, snapshot, locations, electricOnly = false) {
+function answerBikes(nickname, state, snapshot, locations, bikeType = "bikes") {
   const name = displayName(nickname);
-  const metric = electricOnly ? "ebikes" : "bikes";
-  const count = electricOnly ? state.ebikesAvailable : state.bikesAvailable;
-  const noun = electricOnly ? (count === 1 ? "e-bike" : "e-bikes") : (count === 1 ? "bike" : "bikes");
+  const config = {
+    bikes: {
+      count: state.bikesAvailable,
+      singular: "bike",
+      plural: "bikes"
+    },
+    classic: {
+      count: state.classicBikesAvailable,
+      singular: "classic bike",
+      plural: "classic bikes"
+    },
+    ebikes: {
+      count: state.ebikesAvailable,
+      singular: "e-bike",
+      plural: "e-bikes"
+    }
+  }[bikeType];
+  const count = config.count;
+  const noun = count === 1 ? config.singular : config.plural;
 
   if (!state.isInstalled || !state.isRenting) {
-    const alternative = alternativeFromStation(snapshot, state, metric);
-    return `${name} is not renting bikes right now. ${alternativeText(alternative, locations, metric)}`.trim();
+    const alternative = alternativeFromStation(snapshot, state, bikeType);
+    return `${name} is not renting bikes right now. ${alternativeText(alternative, locations, bikeType)}`.trim();
   }
 
   if (count <= 0) {
-    const alternative = alternativeFromStation(snapshot, state, metric);
-    return `No. ${name} has no ${electricOnly ? "e-bikes" : "bikes"} available. ${alternativeText(alternative, locations, metric)}`.trim();
+    const alternative = alternativeFromStation(snapshot, state, bikeType);
+    return `No. ${name} has no ${config.plural} available. ${alternativeText(alternative, locations, bikeType)}`.trim();
   }
 
   if (count <= LOW_BIKES) {
-    const alternative = alternativeFromStation(snapshot, state, metric);
-    return `${name} only has ${count} ${noun}. ${alternativeText(alternative, locations, metric)}`.trim();
+    const alternative = alternativeFromStation(snapshot, state, bikeType);
+    return `${name} only has ${count} ${noun}. ${alternativeText(alternative, locations, bikeType)}`.trim();
   }
 
   return `Yes. ${name} has ${count} ${noun} available.`;
@@ -197,9 +229,16 @@ function answerStatus(nickname, state) {
 function answerNearMe(intent, snapshot, locations, lat, lon) {
   const nearest = nearestForIntent(snapshot, lat, lon, intent);
   if (!nearest) {
-    return intent === "docks"
-      ? "I couldn't find a nearby station with an open dock."
-      : "I couldn't find a nearby station with an available bike.";
+    if (intent === "docks") {
+      return "I couldn't find a nearby station with an open dock.";
+    }
+    if (intent === "classic") {
+      return "I couldn't find a nearby station with a classic bike available.";
+    }
+    if (intent === "ebikes") {
+      return "I couldn't find a nearby station with an e-bike available.";
+    }
+    return "I couldn't find a nearby station with an available bike.";
   }
 
   const label = stationLabel(nearest.station, locations);
@@ -207,6 +246,9 @@ function answerNearMe(intent, snapshot, locations, lat, lon) {
 
   if (intent === "docks") {
     return `${label} is ${distance} with ${nearest.docksAvailable} open docks.`;
+  }
+  if (intent === "classic") {
+    return `${label} is ${distance} with ${nearest.classicBikesAvailable} classic bikes.`;
   }
   if (intent === "ebikes") {
     return `${label} is ${distance} with ${nearest.ebikesAvailable} e-bikes.`;
@@ -238,6 +280,11 @@ function answerNearbyCount(intent, snapshot, lat, lon) {
       noun: "bikes",
       eligible: (state) => state.isRenting
     },
+    classic: {
+      metric: "classicBikesAvailable",
+      noun: "classic bikes",
+      eligible: (state) => state.isRenting
+    },
     ebikes: {
       metric: "ebikesAvailable",
       noun: "e-bikes",
@@ -259,11 +306,12 @@ function answerAreaSummary(snapshot, locations, lat, lon) {
   const renting = states.filter((state) => state.isRenting);
   const returning = states.filter((state) => state.isReturning);
   const totalBikes = renting.reduce((total, state) => total + state.bikesAvailable, 0);
+  const totalClassicBikes = renting.reduce((total, state) => total + state.classicBikesAvailable, 0);
   const totalEbikes = renting.reduce((total, state) => total + state.ebikesAvailable, 0);
   const totalDocks = returning.reduce((total, state) => total + state.docksAvailable, 0);
   const bestBike = bestNearby(states, "bikesAvailable", (state) => state.isRenting);
   const bestDock = bestNearby(states, "docksAvailable", (state) => state.isReturning);
-  let text = `Within a quarter mile, ${states.length} stations have ${totalBikes} bikes, including ${totalEbikes} e-bikes, and ${totalDocks} open docks.`;
+  let text = `Within a quarter mile, ${states.length} stations have ${totalBikes} bikes, including ${totalClassicBikes} classic bikes and ${totalEbikes} e-bikes, and ${totalDocks} open docks.`;
 
   if (bestBike) {
     text += ` Best for a bike is ${stationLabel(bestBike.station, locations)} with ${bestBike.bikesAvailable}.`;
@@ -280,8 +328,20 @@ function answerComparison(nicknames, intent, locations, snapshot) {
     nickname,
     state: stateForNickname(nickname, locations, snapshot)
   }));
-  const metric = intent === "ebikes" ? "ebikesAvailable" : intent === "bikes" ? "bikesAvailable" : "docksAvailable";
-  const noun = intent === "ebikes" ? "e-bikes" : intent === "bikes" ? "bikes" : "open docks";
+  const metric = intent === "ebikes"
+    ? "ebikesAvailable"
+    : intent === "classic"
+      ? "classicBikesAvailable"
+      : intent === "bikes"
+        ? "bikesAvailable"
+        : "docksAvailable";
+  const noun = intent === "ebikes"
+    ? "e-bikes"
+    : intent === "classic"
+      ? "classic bikes"
+      : intent === "bikes"
+        ? "bikes"
+        : "open docks";
   const [a, b] = states;
   const aCount = a.state[metric];
   const bCount = b.state[metric];
@@ -352,10 +412,12 @@ export default async function handler(request, response) {
       text = intent === "docks"
         ? answerDocks(nickname, state, snapshot, locations)
         : intent === "bikes"
-          ? answerBikes(nickname, state, snapshot, locations, false)
-          : intent === "ebikes"
-            ? answerBikes(nickname, state, snapshot, locations, true)
-            : answerStatus(nickname, state);
+          ? answerBikes(nickname, state, snapshot, locations, "bikes")
+          : intent === "classic"
+            ? answerBikes(nickname, state, snapshot, locations, "classic")
+            : intent === "ebikes"
+              ? answerBikes(nickname, state, snapshot, locations, "ebikes")
+              : answerStatus(nickname, state);
     } else if (lat !== null && lon !== null && mode === "nearby-count") {
       text = answerNearbyCount(intent, snapshot, lat, lon);
     } else if (lat !== null && lon !== null && mode === "area-summary") {
